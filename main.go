@@ -58,6 +58,7 @@ func main(){
 	router.HandleFunc("/signup", signupHandler(usersColl)).Methods("POST")
 	router.HandleFunc("/login", loginHandler(usersColl)).Methods("POST")
 	router.HandleFunc("/urls", authMiddleware(createURLHandler(urlsColl, jwtSecret), jwtSecret)).Methods("POST")
+	router.HandleFunc("/{key}", redirectHandler(urlsColl)).Methods("GET")
 	// router.HandleFunc("/urls/{id}", authMiddleware(viewURLHandler(urlsColl, jwtSecret), jwtSecret)).Methods("GET")
 	// router.HandleFunc("/urls", authMiddleware(getURLsHandler(urlsColl, jwtSecret), jwtSecret)).Methods("GET")
 	// router.HandleFunc("/urls/{id}/deactivate", authMiddleware(getURLsHandler(urlsColl, jwtSecret), jwtSecret)).Methods("PUT")
@@ -286,5 +287,21 @@ func createURLHandler(urlsColl *mongo.Collection, jwtSecret string) http.Handler
 			return
 		}
 
+	}
+}
+
+func redirectHandler(urlsColl *mongo.Collection) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get the shortened URL key from the path
+		vars := mux.Vars(r)
+		key := vars["key"]
+
+		var url URL
+		if err := urlsColl.FindOne(context.TODO(), bson.M{"short": key}).Decode(&url); err != nil {
+			http.Error(w, "URL not found", http.StatusNotFound)
+			return
+		}
+
+		http.Redirect(w, r, url.Original, http.StatusFound)
 	}
 }
