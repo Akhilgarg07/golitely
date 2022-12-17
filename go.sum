@@ -1,3 +1,5 @@
+github.com/catinello/base62 v0.0.0-20210103152244-29b605f01e9b h1:cmJ9DNW7ynZyRSbmMFJ196VoeyACx59l4evFWd6/fw0=
+github.com/catinello/base62 v0.0.0-20210103152244-29b605f01e9b/go.mod h1:5LcXhHD4xsYgujv9TLgV4rIhOxGqBJgpdUG42MHSKaQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/golang-jwt/jwt/v4 v4.4.3 h1:Hxl6lhQFj4AnOX6MLrsCb/+7tCj7DxP7VA+2rDIq5AU=

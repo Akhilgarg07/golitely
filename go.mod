@@ -3,6 +3,7 @@ module github.com/akhilgarg07/golitely
 go 1.18
 
 require (
+	github.com/catinello/base62 v0.0.0-20210103152244-29b605f01e9b // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect

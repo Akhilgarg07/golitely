@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strings"
@@ -29,10 +30,10 @@ type User struct{
 }
 
 type URL struct{
-	ID	string `bson:"_id"`
+	ID			string `bson:"_id"`
 	Original	string `bson:"original"`
-	Expiry	time.Time `bson:"expiry"`
-	UserID	string `bson:"user_id"`
+	Short		string `bson:"short"`
+	UserID		string `bson:"user_id"`
 	Deactivated	bool `bson:"deactivated"`
 }
 
@@ -192,7 +193,6 @@ func getUserIDFromJWT(r *http.Request, jwtSecret string) (string, error) {
 		return "", fmt.Errorf("invalid authorization header")
 	}
 	tokenString := bearerToken[1]
-	fmt.Println(tokenString)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok{
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -208,12 +208,10 @@ func getUserIDFromJWT(r *http.Request, jwtSecret string) (string, error) {
 	if !ok || !token.Valid{
 		return "", fmt.Errorf("invalid token")
 	}
-	fmt.Println(claims)
 	userId, ok := claims["id"].(string)
 	if !ok {
 		return "", fmt.Errorf("invalid token claims")
 	}
-	fmt.Println(userId)
 	return userId, nil
 
 }
@@ -225,7 +223,6 @@ func authMiddleware(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		fmt.Println(userId)
 		ctx := context.WithValue(r.Context(), "user_id", userId)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
@@ -236,6 +233,17 @@ func validateURL(url string) bool {
 	return re.MatchString(url)
 }
 
+// from https://siongui.github.io/2015/04/13/go-generate-random-string/
+func getRandomString(strlen int) string {
+	rand.Seed(time.Now().UTC().UnixNano())
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := make([]byte, strlen)
+	for i := 0; i < strlen; i++ {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
+}
+
 func createURLHandler(urlsColl *mongo.Collection, jwtSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
@@ -244,15 +252,10 @@ func createURLHandler(urlsColl *mongo.Collection, jwtSecret string) http.Handler
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
 		}
-		fmt.Println(userId)
 		var url URL
 		if err := json.NewDecoder(r.Body).Decode(&url); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
-		}
-		
-		if url.Expiry.IsZero() {
-			url.Expiry = time.Now().Add(24 * time.Hour)
 		}
 
 		if !validateURL(url.Original) {
@@ -263,13 +266,25 @@ func createURLHandler(urlsColl *mongo.Collection, jwtSecret string) http.Handler
 		url.ID = primitive.NewObjectID().Hex()
 		url.UserID = userId
 		
+		url.Short = getRandomString(8)
+
 		if _, err := urlsColl.InsertOne(context.TODO(), url); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(url)
+
+		response := map[string]string{
+			"original": url.Original,
+			"shorten": "http://"+ r.Host+"/"+url.Short,
+			"key": url.Short,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 	}
 }
