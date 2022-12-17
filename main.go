@@ -302,6 +302,11 @@ func redirectHandler(urlsColl *mongo.Collection) http.HandlerFunc {
 			return
 		}
 
+		if url.Deactivated {
+			http.Error(w, "URL no longer active", http.StatusNotFound)
+			return
+		}
+
 		http.Redirect(w, r, url.Original, http.StatusFound)
 	}
 }
