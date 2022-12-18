@@ -29,12 +29,18 @@ type User struct{
 	Password	string `bson:"password"`
 }
 
-type URL struct{
-	ID			string `bson:"_id"`
-	Original	string `bson:"original"`
-	Short		string `bson:"short"`
-	UserID		string `bson:"user_id"`
-	Deactivated	bool `bson:"deactivated"`
+type URL struct {
+	ID          string `bson:"_id" json:"id"`
+	Original    string `bson:"original" json:"original"`
+	Short       string `bson:"short" json:"short"`
+	UserID      string `bson:"user_id" json:"userId"`
+	Deactivated bool   `bson:"deactivated" json:"deactivated"`
+}
+type URLResponse struct {
+	ID          string `bson:"_id" json:"id"`
+	Original    string `bson:"original" json:"original"`
+	Short       string `bson:"short" json:"short"`
+	Deactivated bool   `bson:"deactivated" json:"deactivated"`
 }
 
 func main(){
@@ -57,12 +63,13 @@ func main(){
 	router := mux.NewRouter()
 	router.HandleFunc("/signup", signupHandler(usersColl)).Methods("POST")
 	router.HandleFunc("/login", loginHandler(usersColl)).Methods("POST")
-	router.HandleFunc("/urls", authMiddleware(createURLHandler(urlsColl, jwtSecret), jwtSecret)).Methods("POST")
+	router.HandleFunc("/urls", authMiddleware(createURLHandler(urlsColl), jwtSecret)).Methods("POST")
+	router.HandleFunc("/urls/{id}", authMiddleware(viewURLHandler(urlsColl), jwtSecret)).Methods("GET")
+	router.HandleFunc("/urls", authMiddleware(viewURLsHandler(urlsColl), jwtSecret)).Methods("GET")
+	router.HandleFunc("/urls/{id}", authMiddleware(deleteURLHandler(urlsColl), jwtSecret)).Methods("DELETE")
+	router.HandleFunc("/urls/{id}/deactivate", authMiddleware(deactivateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
+	router.HandleFunc("/urls/{id}/activate", authMiddleware(activateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
 	router.HandleFunc("/{key}", redirectHandler(urlsColl)).Methods("GET")
-	// router.HandleFunc("/urls/{id}", authMiddleware(viewURLHandler(urlsColl, jwtSecret), jwtSecret)).Methods("GET")
-	// router.HandleFunc("/urls", authMiddleware(getURLsHandler(urlsColl, jwtSecret), jwtSecret)).Methods("GET")
-	// router.HandleFunc("/urls/{id}/deactivate", authMiddleware(getURLsHandler(urlsColl, jwtSecret), jwtSecret)).Methods("PUT")
-	// router.HandleFunc("/urls/{id}/activate", authMiddleware(getURLsHandler(urlsColl, jwtSecret), jwtSecret)).Methods("PUT")
 
 	fmt.Print(http.ListenAndServe(":8000", router))
 }
@@ -70,6 +77,143 @@ func main(){
 func validateEmail(email string) bool {
 	re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
 	return re.MatchString(email)
+}
+
+func deleteURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-Type", "application/json")
+		params := mux.Vars(r)
+		id := params["id"]
+		if id == "" {
+			http.Error(w, "Cannot find id", http.StatusBadRequest)
+			return
+		}
+		userId := r.Context().Value("user_id").(string)
+		if userId == "" {
+			http.Error(w, "Cannot verify user", http.StatusBadRequest)
+			return
+		}
+		_, err := urlsColl.DeleteOne(context.TODO(), bson.M{"_id": id, "user_id": userId})
+		if err != nil {
+			http.Error(w, "Error deleting URL", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{
+			"message": "url deleted successfully",
+		}
+
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
+
+func activateURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-Type", "application/json")
+		params := mux.Vars(r)
+		id := params["id"]
+		if id == "" {
+			http.Error(w, "Cannot find id", http.StatusBadRequest)
+			return
+		}
+		userId := r.Context().Value("user_id").(string)
+		if userId == "" {
+			http.Error(w, "Cannot verify user", http.StatusBadRequest)
+			return
+		}
+		var url URL
+		err := urlsColl.FindOne(context.TODO(), bson.M{"_id": id,"user_id": userId}).Decode(&url)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				http.Error(w, "URL not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Error finding URL", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		if !url.Deactivated{
+			http.Error(w, "URL already active", http.StatusInternalServerError)
+			return
+		}
+
+		url.Deactivated = false
+		_, err = urlsColl.ReplaceOne(context.TODO(), bson.M{"_id": id}, url)
+		if err != nil {
+			http.Error(w, "Error updating URL", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{
+			"message": "url activated successfully",
+		}
+
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
+
+func deactivateURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-Type", "application/json")
+		params := mux.Vars(r)
+		id := params["id"]
+		if id == "" {
+			http.Error(w, "Cannot find id", http.StatusBadRequest)
+			return
+		}
+		userId := r.Context().Value("user_id").(string)
+		if userId == "" {
+			http.Error(w, "Cannot verify user", http.StatusBadRequest)
+			return
+		}
+		fmt.Println(id, userId)
+		var url URL
+		err := urlsColl.FindOne(context.TODO(), bson.M{"_id": id,"user_id": userId}).Decode(&url)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				http.Error(w, "URL not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Error finding URL", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		if url.Deactivated{
+			http.Error(w, "URL already deactived", http.StatusInternalServerError)
+			return
+		}
+
+		url.Deactivated = true
+		_, err = urlsColl.ReplaceOne(context.TODO(), bson.M{"_id": id}, url)
+		if err != nil {
+			http.Error(w, "Error updating URL", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{
+			"message": "url deactiavted successfully",
+		}
+
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
 }
 
 func signupHandler(userColl *mongo.Collection) http.HandlerFunc {
@@ -245,7 +389,7 @@ func getRandomString(strlen int) string {
 	return string(result)
 }
 
-func createURLHandler(urlsColl *mongo.Collection, jwtSecret string) http.HandlerFunc {
+func createURLHandler(urlsColl *mongo.Collection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
 		userId := r.Context().Value("user_id").(string)
@@ -308,5 +452,74 @@ func redirectHandler(urlsColl *mongo.Collection) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, url.Original, http.StatusFound)
+	}
+}
+
+func viewURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-Type", "application/json")
+		params := mux.Vars(r)
+		id := params["id"]
+		if id == "" {
+			http.Error(w, "Cannot find id", http.StatusBadRequest)
+			return
+		}
+		userId := r.Context().Value("user_id").(string)
+		if userId == "" {
+			http.Error(w, "Cannot verify user", http.StatusBadRequest)
+			return
+		}
+		var url URLResponse
+		if err := urlsColl.FindOne(context.TODO(), bson.M{"_id": id, "user_id": userId}).Decode(&url); err != nil {
+			http.Error(w, "Error finding URL", http.StatusInternalServerError)
+			return
+		}
+
+		if err := json.NewEncoder(w).Encode(url); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
+
+func viewURLsHandler(urlsColl *mongo.Collection) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-Type", "application/json")
+		userId := r.Context().Value("user_id").(string)
+		if userId == "" {
+			http.Error(w, "Cannot verify user", http.StatusBadRequest)
+			return
+		}
+		cur, err := urlsColl.Find(context.TODO(), bson.M{"user_id": userId})
+		if err != nil {
+			http.Error(w, "Error finding URLs", http.StatusInternalServerError)
+			return
+		}
+		defer cur.Close(context.TODO())
+
+		var URLs []URLResponse
+		for cur.Next(context.TODO()) {
+			var url URLResponse
+			err := cur.Decode(&url)
+			if err != nil {
+				http.Error(w, "Error decoding URL", http.StatusInternalServerError)
+				return
+			}
+			URLs = append(URLs, url)
+		}
+
+		if err := cur.Err(); err != nil {
+			http.Error(w, "Error iterating over URLs cursor", http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(URLs)
+
+		if err := json.NewEncoder(w).Encode(URLs); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 	}
 }
