@@ -33,5 +33,5 @@ func init() {
 func initConfig() {
 	// Set all defaults
 	viper.AutomaticEnv()
-	viper.SetDefault("GRPC_PORT", "4772")
+	viper.SetDefault("PORT", "8000")
 }
