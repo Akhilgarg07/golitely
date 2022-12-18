@@ -18,6 +18,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type UserID string
+
 const (
 	mongodbURI = "mongodb://localhost:27017"
 	jwtSecret = "mysecret"
@@ -90,7 +92,7 @@ func deleteURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 			http.Error(w, "Cannot find id", http.StatusBadRequest)
 			return
 		}
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
@@ -124,7 +126,7 @@ func activateURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 			http.Error(w, "Cannot find id", http.StatusBadRequest)
 			return
 		}
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
@@ -175,7 +177,7 @@ func deactivateURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 			http.Error(w, "Cannot find id", http.StatusBadRequest)
 			return
 		}
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
@@ -370,7 +372,7 @@ func authMiddleware(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), "user_id", userId)
+		ctx := context.WithValue(r.Context(), UserID("user_id"), userId)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
@@ -394,7 +396,7 @@ func getRandomString(strlen int) string {
 func createURLHandler(urlsColl *mongo.Collection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
@@ -469,7 +471,7 @@ func viewURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 			http.Error(w, "Cannot find id", http.StatusBadRequest)
 			return
 		}
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
@@ -491,7 +493,7 @@ func viewURLHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 func viewURLsHandler(urlsColl *mongo.Collection) http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
-		userId := r.Context().Value("user_id").(string)
+		userId := r.Context().Value(UserID("user_id")).(string)
 		if userId == "" {
 			http.Error(w, "Cannot verify user", http.StatusBadRequest)
 			return
