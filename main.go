@@ -1,23 +1,15 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-
 	"github.com/akhilgarg07/golitely/source/cmd"
-	"github.com/akhilgarg07/golitely/source/handlers"
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserID string
 
-const (
-	mongodbURI = "mongodb://localhost:27017"
-	jwtSecret = "mysecret"
-)
+// const (
+// 	mongodbURI = "mongodb://localhost:27017"
+// 	jwtSecret = "mysecret"
+// )
 
 // type User struct{
 // 	ID			string `bson:"_id"`
@@ -43,34 +35,34 @@ const (
 
 func main(){
 	cmd.Execute()
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongodbURI))
-	if err != nil {
-		fmt.Print(err)
-		return
-	}
+	// client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongodbURI))
+	// if err != nil {
+	// 	fmt.Print(err)
+	// 	return
+	// }
 
-	err = client.Ping(context.TODO(), nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println("Connected to MongoDB")
+	// err = client.Ping(context.TODO(), nil)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Println("Connected to MongoDB")
 
-	usersColl := client.Database("url_shortner").Collection("users")
-	urlsColl := client.Database("url_shortner").Collection("urls")
+	// usersColl := client.Database("url_shortner").Collection("users")
+	// urlsColl := client.Database("url_shortner").Collection("urls")
 
-	router := mux.NewRouter()
-	router.HandleFunc("/signup", handlers.SignupHandler(usersColl)).Methods("POST")
-	router.HandleFunc("/login", handlers.LoginHandler(usersColl)).Methods("POST")
-	router.HandleFunc("/urls", handlers.AuthMiddleware(handlers.CreateURLHandler(urlsColl), jwtSecret)).Methods("POST")
-	router.HandleFunc("/urls/{id}", handlers.AuthMiddleware(handlers.ViewURLHandler(urlsColl), jwtSecret)).Methods("GET")
-	router.HandleFunc("/urls", handlers.AuthMiddleware(handlers.ViewURLsHandler(urlsColl), jwtSecret)).Methods("GET")
-	router.HandleFunc("/urls/{id}", handlers.AuthMiddleware(handlers.DeleteURLHandler(urlsColl), jwtSecret)).Methods("DELETE")
-	router.HandleFunc("/urls/{id}/deactivate", handlers.AuthMiddleware(handlers.DeactivateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
-	router.HandleFunc("/urls/{id}/activate", handlers.AuthMiddleware(handlers.ActivateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
-	router.HandleFunc("/{key}", handlers.RedirectHandler(urlsColl)).Methods("GET")
+	// router := mux.NewRouter()
+	// router.HandleFunc("/signup", handlers.SignupHandler(usersColl)).Methods("POST")
+	// router.HandleFunc("/login", handlers.LoginHandler(usersColl)).Methods("POST")
+	// router.HandleFunc("/urls", handlers.AuthMiddleware(handlers.CreateURLHandler(urlsColl), jwtSecret)).Methods("POST")
+	// router.HandleFunc("/urls/{id}", handlers.AuthMiddleware(handlers.ViewURLHandler(urlsColl), jwtSecret)).Methods("GET")
+	// router.HandleFunc("/urls", handlers.AuthMiddleware(handlers.ViewURLsHandler(urlsColl), jwtSecret)).Methods("GET")
+	// router.HandleFunc("/urls/{id}", handlers.AuthMiddleware(handlers.DeleteURLHandler(urlsColl), jwtSecret)).Methods("DELETE")
+	// router.HandleFunc("/urls/{id}/deactivate", handlers.AuthMiddleware(handlers.DeactivateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
+	// router.HandleFunc("/urls/{id}/activate", handlers.AuthMiddleware(handlers.ActivateURLHandler(urlsColl), jwtSecret)).Methods("PUT")
+	// router.HandleFunc("/{key}", handlers.RedirectHandler(urlsColl)).Methods("GET")
 
-	fmt.Print(http.ListenAndServe(":8000", router))
+	// fmt.Print(http.ListenAndServe(":8000", router))
 }
 
 // func validateEmail(email string) bool {
